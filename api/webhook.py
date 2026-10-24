@@ -15,7 +15,6 @@ BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 CMD_COOLDOWN = 60      # 60 секунд кд на команду /trainsimulatorstavki
 USER_COOLDOWN = 3      # 3 секунды кд на попытку угадать для одного юзера
 
-# Список месяцев для красивого вывода
 MONTHS = [
     "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", 
     "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
@@ -35,16 +34,14 @@ def get_player_name(message: Message):
     return message.from_user.first_name
 
 def generate_random_date():
-    """Генерирует случайную дату: день (1-28), месяц (1-12), год (2026-5000)."""
-    day = random.randint(1, 28) # Берем до 28, чтобы не было проблем с 30/31 февраля
+    day = random.randint(1, 28)
     month = random.randint(1, 12)
-    year = random.randint(2026, 5000)
+    year = random.randint(2026, 2100)
     return (day, month, year)
 
 def format_date(date_tuple):
-    """Превращает (15, 5, 2026) в красивую строку '15 Май 2026'."""
     day, month, year = date_tuple
-    return f"{day} {MONTHS[month-1]} {year}"
+    return f"{day} {MONTHS[month-1]} {year} год"
 
 
 @dp.message(Command("start"))
@@ -64,7 +61,13 @@ async def cmd_start_bets(message: Message):
 
     # Генерируем 5 случайных дат
     options = [generate_random_date() for _ in range(5)]
-    correct_date = random.choice(options)
+    
+    # Настоящий правильный ответ (его бот скрывает)
+    correct_date = random.choice(options) 
+
+    # Бот делает СВОЮ случайную ставку (может совпасть с правильной, а может нет)
+    bot_guess_date = random.choice(options)
+    bot_guess_text = format_date(bot_guess_date)
 
     # Сохраняем игру
     active_games[chat_id] = {
@@ -74,13 +77,11 @@ async def cmd_start_bets(message: Message):
 
     chat_cooldowns[chat_id] = now + CMD_COOLDOWN
 
-    # Красиво форматируем список вариантов
     options_text = "\n".join([f"• {format_date(opt)}" for opt in options])
-    correct_text = format_date(correct_date)
     
     text = (f"Ставки Когда Выйдет Train Simulator!\n"
             f"Ответы (5 Вариантов):\n{options_text}\n\n"
-            f"Я думаю {correct_text}! А ты?\n"
+            f"Я думаю {bot_guess_text}! А ты?\n" # Бот пишет СВОЮ догадку
             f"Один вариант Верный!\n"
             f"(Угадайте день, месяц или год)")
 
@@ -89,26 +90,22 @@ async def cmd_start_bets(message: Message):
 
 @dp.message()
 async def handle_guesses(message: Message):
-    # ЗАЩИТА 1: Игнорируем всё, что не текст
     if not message.text:
         return
 
     chat_id = message.chat.id
     
-    # Если игры нет — выходим
     if chat_id not in active_games:
         return
 
     text_lower = message.text.lower()
     
-    # ЗАЩИТА 2: Игнорируем, если нет ни цифр, ни букв
     if not any(char.isdigit() for char in text_lower) and not any(char.isalpha() for char in text_lower):
         return
 
     user_id = message.from_user.id
     now = time.time()
 
-    # ЗАЩИТА 3: Личный кулдаун от спама
     cooldown_key = (chat_id, user_id)
     if now < user_cooldowns.get(cooldown_key, 0):
         return 
@@ -118,19 +115,16 @@ async def handle_guesses(message: Message):
     correct_day, correct_month, correct_year = active_games[chat_id]['correct']
     player_name = get_player_name(message)
 
-    # Вытаскиваем все числа из сообщения
     numbers = re.findall(r'\b\d+\b', text_lower)
     
     guessed_part = None
 
-    # ПРОВЕРКА: Угадал ли год, месяц (цифрой) или день (цифрой)
     if str(correct_year) in numbers:
         guessed_part = "год"
     elif str(correct_month) in numbers:
         guessed_part = "месяц"
     elif str(correct_day) in numbers:
         guessed_part = "день"
-    # ПРОВЕРКА: Угадал ли месяц словом (например, написал "май")
     elif MONTHS[correct_month-1].lower() in text_lower:
         guessed_part = "месяц"
 
