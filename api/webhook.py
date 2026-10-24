@@ -36,7 +36,8 @@ def get_player_name(message: Message):
 def generate_random_date():
     day = random.randint(1, 28)
     month = random.randint(1, 12)
-    year = random.randint(2026, 2100)
+    # Генерируем год ТОЛЬКО из списка [2026, 2027]
+    year = random.choice([2026, 2027])
     return (day, month, year)
 
 def format_date(date_tuple):
@@ -65,7 +66,7 @@ async def cmd_start_bets(message: Message):
     # Настоящий правильный ответ (его бот скрывает)
     correct_date = random.choice(options) 
 
-    # Бот делает СВОЮ случайную ставку (может совпасть с правильной, а может нет)
+    # Бот делает СВОЮ случайную ставку
     bot_guess_date = random.choice(options)
     bot_guess_text = format_date(bot_guess_date)
 
@@ -81,7 +82,7 @@ async def cmd_start_bets(message: Message):
     
     text = (f"Ставки Когда Выйдет Train Simulator!\n"
             f"Ответы (5 Вариантов):\n{options_text}\n\n"
-            f"Я думаю {bot_guess_text}! А ты?\n" # Бот пишет СВОЮ догадку
+            f"Я думаю {bot_guess_text}! А ты?\n"
             f"Один вариант Верный!\n"
             f"(Угадайте день, месяц или год)")
 
@@ -119,12 +120,16 @@ async def handle_guesses(message: Message):
     
     guessed_part = None
 
+    # Проверка на угаданный год
     if str(correct_year) in numbers:
         guessed_part = "год"
+    # Проверка на угаданный месяц цифрой
     elif str(correct_month) in numbers:
         guessed_part = "месяц"
+    # Проверка на угаданный день
     elif str(correct_day) in numbers:
         guessed_part = "день"
+    # Проверка на угаданный месяц словом
     elif MONTHS[correct_month-1].lower() in text_lower:
         guessed_part = "месяц"
 
@@ -135,7 +140,6 @@ async def handle_guesses(message: Message):
             f"🎉 {player_name} Угадал {guessed_part} Когда Выйдет TrainSimulator!\n"
             f"Он выйдет {full_date}!"
         )
-        # Удаляем игру, так как победитель найден
         del active_games[chat_id]
 
 
